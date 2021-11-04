@@ -1,0 +1,105 @@
+I"�<p>This is an example of post.</p>
+
+<h2 id="posts-yaml">Post’s YAML</h2>
+
+<hr />
+
+<ul>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">layout: post</code></dt>
+      <dd>This should <strong>NOT</strong> be changed.</dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">title</code></dt>
+      <dd>The title of your article.</dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">author</code></dt>
+      <dd>E.g. <code class="language-plaintext highlighter-rouge">author: Lambda</code>, default is the site’s author.</dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">date</code></dt>
+      <dd>E.g. <code class="language-plaintext highlighter-rouge">date: 2015-08-17</code> or <code class="language-plaintext highlighter-rouge">data: 2015-08-17 15:06:10</code></dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">categories</code></dt>
+      <dd>No blanks, one post to one category. E.g. <code class="language-plaintext highlighter-rouge">categories: ["test"]</code>, <code class="language-plaintext highlighter-rouge">categories: ["test-this"]</code></dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">tags</code> (optional)</dt>
+      <dd>You can specify one or more tags. E.g. <code class="language-plaintext highlighter-rouge">tags: [jekyll, html]</code>.</dd>
+    </dl>
+  </li>
+</ul>
+
+<hr />
+
+<ul>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">mathjax</code> (optional)</dt>
+      <dd>if you need enable mathjax: <code class="language-plaintext highlighter-rouge">mathjax: true</code>; otherwise mean disable.</dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">update</code> (optional)</dt>
+      <dd>E.g. <code class="language-plaintext highlighter-rouge">update: 2015-05-02</code></dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">comment</code> (optional)</dt>
+      <dd>enable the comment. E.g. <code class="language-plaintext highlighter-rouge">comment: true</code></dd>
+    </dl>
+  </li>
+  <li>
+    <dl>
+      <dt><code class="language-plaintext highlighter-rouge">published</code> (optional)</dt>
+      <dd>true or false</dd>
+    </dl>
+  </li>
+</ul>
+
+<hr />
+
+<h2 id="posts-content">Post’s Content</h2>
+
+<h4 id="include-liquid-in-markdown">Include Liquid in markdown</h4>
+
+<ul>
+  <li>All legal markdown syntax may be allowed.</li>
+  <li>Liquid synatax also should be allowed.</li>
+</ul>
+
+<p>So, if you want to avoid syntax conflicts, you can use <code class="language-plaintext highlighter-rouge">{% raw %}</code></p>
+
+<p>(More liquid syntax, see <a href="https://github.com/Shopify/liquid/wiki/Liquid-for-Designers">Liquid-for-Designers</a>)</p>
+
+<h4 id="markdown">Markdown</h4>
+
+<p><a href="https://kramdown.gettalong.org/">kramdown</a></p>
+
+<h2 id="test">Test</h2>
+
+<p>Some long sentence.<sup id="fnref:footnote" role="doc-noteref"><a href="#fn:footnote" class="footnote" rel="footnote">1</a></sup> Other long sentence.</p>
+
+<div class="footnotes" role="doc-endnotes">
+  <ol>
+    <li id="fn:footnote" role="doc-endnote">
+      <p><a href="https://google.com">Link</a>. <a href="#fnref:footnote" class="reversefootnote" role="doc-backlink">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+:ET
