@@ -7,8 +7,8 @@ github_username:  github
 head-title: CIAM-GROUP
 title: CIAM-GROUP
 
-baseurl: "/blog"
-url: ""
+baseurl: ""
+url: "https://ciam-group.github.io"
 
 # footer 
 description: "I know that what I'm doing looks stupid, but I'm a big boy and really want to do this."
