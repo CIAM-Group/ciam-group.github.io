@@ -1,0 +1,14 @@
+
+<div class="home container">
+
+    <ul class="post-list">
+
+        {% for file in site.data.files %}
+        <li class="card-panel hoverable">
+            <span class="grey-text right">{{ file.date | date: "%b %-d, %Y" }}</span>
+            <a class="post-link" href="{{ site.url }}/assets/show/{{file.path}}">{{file.name}} - {{file.uploader}}</a>
+        </li>
+        {% endfor %}
+    </ul>
+
+</div>
