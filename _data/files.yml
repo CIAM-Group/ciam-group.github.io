@@ -1,5 +1,10 @@
 
-- name: PtrNet的复现尝试
+- name: PtrNet的复现尝试.pdf
   path: ptrnet-tsp5&10.pdf
   uploader: Li Han
   date: 2021-11-5
+
+- name: PtrNet的复现尝试.ipynb
+  path: ptrnet-tsp5&10.ipynb
+  uploader: Li Han
+  date: 2021-11-6
