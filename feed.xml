@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.2.1">Jekyll</generator><link href="https://ciam-group.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://ciam-group.github.io/" rel="alternate" type="text/html" /><updated>2021-11-07T02:56:40+00:00</updated><id>https://ciam-group.github.io/feed.xml</id><title type="html">CIAM-GROUP</title><subtitle>I know that what I'm doing looks stupid, but I'm a big boy and really want to do this.</subtitle><author><name>CIAM-GROUP</name></author><entry><title type="html">From RNN to Pointer Network</title><link href="https://ciam-group.github.io/posts/rl/From-RNN-to-Pointer-Network.html" rel="alternate" type="text/html" title="From RNN to Pointer Network" /><published>2021-10-04T00:00:00+00:00</published><updated>2021-10-04T00:00:00+00:00</updated><id>https://ciam-group.github.io/posts/rl/From-RNN-to-Pointer-Network</id><content type="html" xml:base="https://ciam-group.github.io/posts/rl/From-RNN-to-Pointer-Network.html">&lt;p&gt;从基础的RNN网络结构开始，介绍LSTM、Encoder-Decoder、Attention Mechanism、Pointer Network。&lt;/p&gt;
+
+&lt;h2 id=&quot;rnns&quot;&gt;RNNs&lt;/h2&gt;
+
+&lt;p&gt;与传统的前向神经网络和卷积神经网络不同，循环神经网络 (Recurrent Neural Networks，RNNs) 是一种擅于处理&lt;strong&gt;序列数据&lt;/strong&gt;的模型，例如文本、时间序列、股票市场等。&lt;/p&gt;
+
+&lt;p&gt;对于序列数据，输入之间存在着先后顺序，如“我打车去商场” 和 “我去商场打车”，我们通常需要按照一定的顺序阅读句子才能理解句子的意思。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;参考自Afshine Amidi 和 Shervine Amidi 的 Recurrent Neural Networks cheatsheet&lt;sup id=&quot;fnref:1&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;面对这种情况我们就需要用到循环神经网络了，其结构如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/4pJsfiPgcvZDyNB.png&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;$x^{T}$为我们的输入序列，$a^{T}$为隐藏层输出，它保存了输入序列的历史信息，$y^{T}$为输出序列，计算方法如下
+\(\begin{align}
+a^{t} = g_{1}(W_{aa}a^{t-1} + W_{ax}x^{t} + b_{a})
+ \\
+y^{t} = g_{2} (W_{ya}a^{t} + b_{y})
+\end{align}\)
+其中，$W_{ax}$，$W_{aa}$，$W_{ya}$，$b_a$，$b_y$，$W_{ax}$，$W_{aa}$，$W_{ya}$，$b_a$，$b_y$ 为模型参数，由所有时刻$t$共享， $g_1$，$g_2$ 为激活函数。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/mYIvgnV59NKoPXB.png&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;　损失函数$\mathcal{L}$  定义为各时刻$\mathcal{L}$ 之和，每一时刻$t$都将进行：计算loss，计算偏导数，更新网络参数&lt;/p&gt;
+
+\[\mathcal{L}(\hat{y}, y) = \sum^{T_y}_{t = 1}\mathcal{L}(\hat{y}^{t}, y^{t})\]
+
+&lt;p&gt;其中，$\hat{y}^{t}$代表$t$时刻预测值，$y^{t}$代表$t$时刻的真实值。&lt;/p&gt;
+
+&lt;p&gt;这样一个基础的RNN结构，隐藏层的存在让他拥有“记忆”的能力，当然它也存在一些不足。&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;:-)&lt;/th&gt;
+      &lt;th&gt;:-(&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;输入序列长度可变，模型size不会随着输入序列长度增加而增加&lt;/td&gt;
+      &lt;td&gt;计算缓慢&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;“记忆”历史信息&lt;/td&gt;
+      &lt;td&gt;长期记忆能力不足&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;权重在任意时刻共享&lt;/td&gt;
+      &lt;td&gt;看不到未来的信息&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;面对不同的应用场景，RNN拥有多种结构：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;输入不是序列而输出为序列，如根据类别产生音乐&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/w3YJghbM74sezoZ.png&quot; class=&quot;postimgs&quot; style=&quot;width:60%;&quot; alt=&quot;$T_x$ = 1, $T_y$ &amp;gt; 1&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;输入是序列而输出不是序列，如情感分析&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/nZFBRSwj9J37LeD.png&quot; alt=&quot;$T_x &amp;gt; 1$, $T_y = 1$&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;输入是序列而输出也是序列，且等长，传统RNN结构&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/wF75QY4ckRxPLnW.png&quot; alt=&quot;$T_x$ = $T_y$&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;输入是序列而输出也是序列，且不等长，如下文我们提到的encoder-decoder模型seq2seq&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/EAG3NZawTtbgQm2.png&quot; alt=&quot;$T_x$ != $T_y$&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;对原序列进行双向输入，可以获取“未来信息”、“过去信息”的Bidirectional (BRNN)&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/23/gWxoERbcfITZUPa.png&quot; alt=&quot;BRNN&quot; style=&quot;zoom:60%;&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;将RNN堆叠，可以处理更复杂问题的Deep (DRNN)&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/23/2Gfw6m4gsLhkSE9.png&quot; alt=&quot;DRNN&quot; style=&quot;zoom:60%;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;lstm&quot;&gt;LSTM&lt;/h2&gt;
+
+&lt;p&gt;RNN结构十分简单，但参数矩阵的梯度存在长期依赖，当面对一个长序列的时候，由于梯度消失/爆炸，RNN难以发挥作用。1997年，Hochreiter &amp;amp; Schmidhuber在“LONG SHORT-TERM MEMORY“&lt;sup id=&quot;fnref:2&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;中提出一种RNN的变种LSTMs(Long Short Term Memory networks)，尝试解决长期依赖的问题。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;该部分的图出自Christopher Olah的&lt;em&gt;Understanding LSTM Networks&lt;/em&gt;&lt;sup id=&quot;fnref:3&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;在传统RNN中，循环单元结构简单，只有一层网络层，如单层tanh层。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/liqRmNCbaxvYhdW.png&quot; alt=&quot;拥有一层tanh层的RNN神经元&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;为了应对长期依赖，LSTM的循环单元结构更为复杂，他不再只有一层，取而代之的是多层神经网络层，他们各有不同的功能，且以特殊的方式互相连接在一起。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/19/bfDqTH1gYs4Kxdh.png&quot; alt=&quot;LSTMs的循环单元有更复杂的结构&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;上图中的一些符号含义如下&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/Xp9FeUaErZQDWgA.png&quot; alt=&quot;一些符号&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;带箭头的线代表向量的流动方向，分叉代表向量流向多个节点，合并代表向量以某种方式共同作用；黄色矩形代表神经网络层，拥有相应的权重、偏置、激活函数；粉色圆形代表一些向量运算，如按位乘等。&lt;/p&gt;
+
+&lt;p&gt;LSTMs的一个关键设计在于$C_t$的引入，他经过“遗忘门”、“输入门”的作用，最终在“输入门”影响最终的隐状态$h$。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/JTyZBOQGgceUxjI.png&quot; alt=&quot;cell state&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;另一关键设计是”门”的引入，他由sigmoid层与按位乘运算组成。LSTMs有三个门：&lt;strong&gt;遗忘门&lt;/strong&gt;、&lt;strong&gt;输入门&lt;/strong&gt;、&lt;strong&gt;输出门&lt;/strong&gt;，我们来逐步了解他们是如何起作用的。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/wu9fQZWOxKSHGa4.png&quot; alt=&quot;LSTMs中的“门”&quot; style=&quot;zoom:80%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;首先是遗忘门，用来判断哪些信息应该删除；其中$\sigma$表示激活函数$\text{sigmoid}$，$h_{t-1}$代表上一时刻隐状态，$x_t$代表当前时刻输入。&lt;/p&gt;
+
+&lt;p&gt;$h_{t-1}$、$x_t$ 经过激活函数后得到$f_t$，$f_t$中每一个值的范围都是 [0, 1]。$f_t$中的值越接近 1，表示对应位置的值更应该记住；越接近 0，表示对应位置的值更应该忘记。将 $f_t$与$C_{t-1}$按位相乘 (ElementWise 相乘) ，即可以得到遗忘无用信息之后的$C_{t-1}^{‘}$。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/3ixgGztSNAcey4o.png&quot; alt=&quot;遗忘门&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;其次是输入门，用来判断哪些新的信息应该记住。$h_{t-1}$$、x_t$经过 tanh 激活函数可以得到新的输入信息$\tilde{C_{t}}$，但是这些新信息并不全是有用的，因此需要使用$h_{t-1}$和$x_t$经$\text{sigmoid}$得到 $i_t$，$i_t$表示哪些新信息是有用的。两向量相乘后的结果加到$C_{t-1}^{‘}$中，即得到$C_t$。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/BHkoO9ZEedpXWnF.png&quot; alt=&quot;输入门&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;现在，我们已经知道如何更新$C$了&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/9wyXEuCjDq6bHPr.png&quot; alt=&quot;更新cell state&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;最后是输出门，用来判断应该输出哪些信息到$h_t$中。$C_t$经过 tanh 函数(范围变为[-1, 1])得到应该输出的信息，然后$h_{t-1}$和$x_t$经过 sigmoid 函数得到一个向量$o_t$ (范围[0, 1]) ，表示哪些位置的输出应该去掉，哪些应该保留。两向量相乘后的结果就是最终的$h_t$。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/NVC6uIvJf1Fh7yi.png&quot; alt=&quot;输出门&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;attention-mechanism&quot;&gt;Attention Mechanism&lt;/h2&gt;
+
+&lt;p class=&quot;note note-primary&quot;&gt;
+  &lt;b&gt;Encoder-Decoder概念&lt;/b&gt;
+&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/29/1JXnmhqOWL6fbd4.jpg&quot; alt=&quot;Seq2Seq模型示例&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Encoder-Decoder结构是为了解决序列问题提出的，它将整个网络模型分为Encoder和Decoder两部分：编码器将输入序列转化成定长的中间语义向量，解码器将之前中间语义向量转化为输出序列。&lt;/p&gt;
+
+&lt;p&gt;基于此结构，产生了许多经典的模型。如2014年Sutskever等人在&lt;em&gt;Sequence to Sequence Learning with Neural Networks&lt;/em&gt;&lt;sup id=&quot;fnref:4&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt;一文中提出的Seq2Seq模型 (同年份Yoshua Bengio团队的&lt;em&gt;Learning Phrase Representation using RNN Encoder-Decoder for Statistical Machine Translatio&lt;/em&gt;n&lt;sup id=&quot;fnref:5&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:5&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;5&lt;/a&gt;&lt;/sup&gt;也独立的阐述了Seq2Seq的主要思想) ，Google 在2017年提出的Transformer模型等。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;该部分参考自&lt;em&gt;Natural Language Processing with Deep Learning&lt;/em&gt;&lt;sup id=&quot;fnref:6&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:6&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;6&lt;/a&gt;&lt;/sup&gt;及Murat Karakaya的SEQ2SEQ LEARNING&lt;sup id=&quot;fnref:7&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:7&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;7&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;接下来以Seq2Seq模型为例，简单介绍一下Encoder与Decoder是如何工作的。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/xGOZuyrFn37jMUq.png&quot; alt=&quot;编码器&quot; style=&quot;zoom:60%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Encoder需要接收输入序列，产生中间语义向量$\text{Context vector}$ (简记为$C$)，但是将一个任意长度的输入序列转换为固定长度的$C$对于单层架构来说太困难了，通常我们会使用多层 (DRNN)，图中展示的是三层LSTMs架构，最后我们使用Encoder的全部隐状态作为$C$。&lt;/p&gt;
+
+&lt;p&gt;此外，Seq2Seq通常会逆序输入原序列 (注意图中Timesteps的箭头指向) ，这样一来，Encoder最后的输出将会是原序列的首个元素，D ecoder在解码过程中遇到的首个输入正好对应原序列的首元素。这对最终结果是有利的，如文本任务，当Decoder正确翻译了前面一部分单词，将很容易猜出完整的句子。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/YQFLm86izodvkht.png&quot; alt=&quot;解码器&quot; style=&quot;zoom:60%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Decoder同样是一个LSTM多层网络，但结构更复杂一些，&lt;strong&gt;每一层的输出将作为下一层的输入&lt;/strong&gt;。使用Encoder中得到的相关信息初始化Decoder，并输入一个开始信号(在文本任务中，通常为&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;&amp;lt;EOS&amp;gt;&lt;/code&gt;)，最终得到输出序列，输入序列和输出序列长度不要求相同。&lt;/p&gt;
+
+&lt;p&gt;得到输出序列后，我们可以定义$\text{loss}$，使用梯度下降和后向传播最小化$\text{loss}$，训练我们的。Seq2Seq模型。&lt;/p&gt;
+
+&lt;p class=&quot;note note-primary&quot;&gt;
+  &lt;b&gt;Attention-based Models&lt;/b&gt;
+&lt;/p&gt;
+
+&lt;p&gt;一个句子中不同的单词，给予的关注度是不同的，如“the ball is on the field”，你会更关注”ball,” “on,” 和”field,”。因此， Bahdanau等人提出了一种解决方案&lt;sup id=&quot;fnref:8&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:8&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;8&lt;/a&gt;&lt;/sup&gt;，其中设计的关键一点便是Attention机制。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Minh-Thang Luong等人的Effective Approaches to Attention-based Neural Machine Translation对Attention Mechanism做了很好的总结，以下内容参考于此&lt;sup id=&quot;fnref:9&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:9&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;9&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Attention Mechanism可分为：关注所有源词的全局方法 (global) 和只关注源词子集的局部方法 (local)，两种方法的基本思想都是模拟Attention机制，获得当前 $t$ 时刻对齐 (修正) 后的$\text{Context vector}$，即 $c_t$ ，使用该$c_t$计算输出，隐状态等。&lt;/p&gt;
+
+&lt;p&gt;这里只对接下来Ptr Net复现将要使用的global方法做一个简要介绍。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/31/uzMrwhfYixAtZdb.png&quot; alt=&quot;Global attentional model&quot; style=&quot;zoom:40%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;一个Seq2Seq模型，分为两部分：encoder (蓝) 和 decoder (红) 。Attention-based Model希望在每一个输出时刻$j$，获得一个对应的score，评估Encoder $i$ 位置的输入与此刻的相关程度，基于此对原本的中间语义向量进行一个修正。通俗点说，Attention Layer将encoder的隐状态按照一定权重加和之后拼接到decoder的隐状态上，以此作为额外信息，起到“软对齐”的作用，并且提高了整个模型的预测准确度。&lt;/p&gt;
+
+&lt;p&gt;简单举个例子，在机器翻译中一直存在对齐的问题，也就是说源语言的某个单词应该和目标语言的哪个单词对应，如“Who are you”对应“你是谁”，如果我们简单地按照顺序进行匹配的话会发现单词的语义并不对应，显然“who”不能被翻译为“你”。&lt;/p&gt;
+
+&lt;p&gt;而Attention机制非常好地解决了这个问题，如前所述，Attention会给输入序列的每一个元素分配一个权重，如在预测“你”这个字的时候输入序列中的“you”这个词的权重最大，这样模型就知道“你”是和“you”对应的，从而实现了软对齐。&lt;/p&gt;
+
+&lt;p&gt;具体计算过程如下：&lt;/p&gt;
+
+&lt;p&gt;设编码器隐藏层所有隐状态为 $\bar{h}_s$ ，当前第 $j$ 个输出时刻，decoder单元隐状态为 $h_t$，score的计算有三种方式可选择：
+\(score(h_t, \bar{h}_s) = 
+\begin{cases}
+  h_t^\top \bar{h}_s &amp;amp; \text{ dot } \\
+  h_t^\top W_a \bar{h}_s &amp;amp;   \text{ general }\\
+  v_a^\top \text{ tanh }(W_a[h_t;\bar{h}_s])&amp;amp; \text{ concat }
+\end{cases}\)
+接下来根据score计算我们当前时刻的的对齐向量 $a_t(s)$，他的长度随输入序列长度变化而变化：
+\(\alpha _{t}(s) = \frac{exp(score(h_t, \bar{h}_s))}{\sum_{s'}exp(score(h_t, \bar{h}_{s'})) }\)
+最后，根据原$\text{Context vector}$ (即Encoder所有隐状态$\bar{h}_s$)，$a_t(s)$获得对齐后的$c_t$，
+\(c_t = W_a\bar{h}_s  a_t(s)\)
+Decoder最终的隐状态依据$c_t$产生，
+\(\tilde{h}_t = \text{tanh}(W_c[c_t;h_t])\)&lt;/p&gt;
+
+&lt;h2 id=&quot;pointer-network&quot;&gt;Pointer Network&lt;/h2&gt;
+
+&lt;p&gt;为了解决输出序列长度不固定，随输入序列变化而变化的问题 (如组合优化问题) ，2015年，Vinyals 等人对Seq2Seq中的Attention机制进行了改进，提出了指针网络模型 (Pointer Network, Ptr-Net)&lt;sup id=&quot;fnref:10&quot; role=&quot;doc-noteref&quot;&gt;&lt;a href=&quot;#fn:10&quot; class=&quot;footnote&quot; rel=&quot;footnote&quot;&gt;10&lt;/a&gt;&lt;/sup&gt;，并展示了如何使用Ptr-Net求得三种几何问题 (凸包问题，计算Delaunay三角形，TSP问题) 的近似解，文章中还表明，Ptr-Net面对测试集的表现并不局限训练模型，拥有良好的泛化能力。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://i.loli.net/2021/10/16/uHp6LMWsiVP15K4.png&quot; alt=&quot;以凸包问题为例，Seq2Seq与Ptr-Net的区别&quot; style=&quot;zoom:100%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Ptr-Net的主要改进在于简化了Attention Mechanism；回顾上文&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Attention-based Models&lt;/code&gt;一节的计算过程，Ptr-Net直接将对齐向量$\alpha _{t}(s)$作为指向输入序列的概率数组，认为$\alpha _{t}(s)$最大值对应位置即为当前的指针指向；在TSP问题中，我们将城市坐标作为输入序列、最优解作为输出序列对模型进行训练，指针指向即为当前时刻应当访问的城市，Shir Gur的github项目&lt;a href=&quot;https://github.com/shirgur/PointerNet&quot;&gt;PointerNet&lt;/a&gt;对PtrNet在该方面的应用做了很好的复现。&lt;/p&gt;
+
+&lt;div class=&quot;footnotes&quot; role=&quot;doc-endnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;&lt;a href=&quot;https://twitter.com/afshinea&quot;&gt;Afshine Amidi&lt;/a&gt;,&lt;a href=&quot;https://twitter.com/shervinea&quot;&gt;Shervine Amidi&lt;/a&gt;. Recurrent Neural Networks cheatsheet &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Hochreiter S, J. Schmidhuber. &lt;a href=&quot;https://www.bioinf.jku.at/publications/older/2604.pdf&quot;&gt;Long short-term memory&lt;/a&gt;. Neural Computation 9.8(1997):1735-1780. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Christopher Olah.&lt;a href=&quot;http://colah.github.io/posts/2015-08-Understanding-LSTMs/&quot;&gt;Understanding LSTM Networks&lt;/a&gt; &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Sutskever I, Vinyals O, Le Q V. &lt;a href=&quot;https://arxiv.org/abs/1409.3215&quot;&gt;Sequence to Sequence Learning with Neural Networks&lt;/a&gt;[C]//Advances in neural information processing systems. 2014: 3104-3112. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:5&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Cho K, Van Merriënboer B, Gulcehre C, et al. &lt;a href=&quot;https://arxiv.org/abs/1406.1078&quot;&gt;Learning phrase representations using RNN encoder-decoder for statistical machine translation&lt;/a&gt;[J]. arXiv preprint arXiv:1406.1078, 2014. &lt;a href=&quot;#fnref:5&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:6&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Guillaume Genthial, Lucas Liu, Barak Oshri, Kushal Ranjan. &lt;a href=&quot;https://web.stanford.edu/class/archive/cs/cs224n/cs224n.1174/lecture_notes/cs224n-2017-notes6.pdf&quot;&gt;CS224n: Natural Language Processing with Deep Learning &lt;/a&gt;, 2017. &lt;a href=&quot;#fnref:6&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:7&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Murat Karakaya.&lt;a href=&quot;https://medium.com/deep-learning-with-keras/seq2seq-part-f-encoder-decoder-with-bahdanau-luong-attention-mechanism-ca619e240c55&quot;&gt;SEQ2SEQ LEARNING&lt;/a&gt;. 2020. &lt;a href=&quot;#fnref:7&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:8&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Bahdanau D, Cho K, Bengio Y. Bahdanau et al., 2014. &lt;a href=&quot;https://arxiv.org/abs/1409.0473&quot;&gt;Neural Machine Translation by Jointly Learning to Align and Translate&lt;/a&gt;[J]. arXiv preprint arXiv:1409.0473, 2014. &lt;a href=&quot;#fnref:8&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:9&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Luong M T,  Pham H,  Manning C D. &lt;a href=&quot;https://arxiv.org/pdf/1508.04025.pdf&quot;&gt;Effective Approaches to Attention-based Neural Machine Translation&lt;/a&gt;[J]. Computer ence, 2015. &lt;a href=&quot;#fnref:9&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:10&quot; role=&quot;doc-endnote&quot;&gt;
+      &lt;p&gt;Vinyals O, Fortunato M, Jaitly N. &lt;a href=&quot;https://arxiv.org/pdf/1506.03134.pdf&quot;&gt;Pointer networks&lt;/a&gt;[J]. arXiv preprint arXiv:1506.03134, 201 &lt;a href=&quot;#fnref:10&quot; class=&quot;reversefootnote&quot; role=&quot;doc-backlink&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;</content><author><name>LiHan</name></author><category term="RL" /><category term="RNN" /><category term="PtrNet" /><summary type="html">从基础的RNN网络结构开始，介绍LSTM、Encoder-Decoder、Attention Mechanism、Pointer Network。</summary></entry><entry><title type="html">如何上传笔记及其他文件</title><link href="https://ciam-group.github.io/posts/others/How-to-upload-notes-and-other-files.html" rel="alternate" type="text/html" title="如何上传笔记及其他文件" /><published>2021-10-04T00:00:00+00:00</published><updated>2021-10-04T00:00:00+00:00</updated><id>https://ciam-group.github.io/posts/others/How-to-upload-notes-and-other-files</id><content type="html" xml:base="https://ciam-group.github.io/posts/others/How-to-upload-notes-and-other-files.html">&lt;h2 id=&quot;文件目录结构说明&quot;&gt;文件目录结构说明&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/imgs/How-to-upload-notes-and-other-files/1.png&quot; style=&quot;zoom:50%;&quot; /&gt;&lt;/p&gt;</content><author><name>LiHan</name></author><category term="Others" /><summary type="html">文件目录结构说明</summary></entry></feed>
