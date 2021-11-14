@@ -62,11 +62,18 @@ hr {
 
 /* Images */
 
+// img {
+//     max-width: 100%;
+//     vertical-align: middle;
+// }
 img {
     max-width: 100%;
     vertical-align: middle;
+    margin: 10px auto;
+    text-align: center;
+    display: block;
+    margin: 0 auto;
 }
-
 
 /* Figures */
 
