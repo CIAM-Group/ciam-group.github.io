@@ -742,7 +742,70 @@ $$
 > \end{align}
 > $$
 
+**parametric policy**
 
+为了描述策略，对策略进行参数化，在离散空间可用`softmax`：
+
+
+$$
+\pi_\theta(a|s) = \frac{e^{\phi (s,a)^T \theta}} {\sum_{a^{\prime}}e^{\phi (s,a)^T \theta}}
+$$
+
+
+其中 $\phi$代表特征函数，$\theta$代表参数。
+
+连续空间常用`高斯分布`：$a \sim \mathcal{N}(\mu(s), \sigma^2)  $，其中均值是特征值的线性组合 $\mu(s) = \phi(s)^T \theta$，$\sigma^2$可以是固定的也可以作为待优参数的一部分。
+
+**Variance reduction with a baseline**
+
+观察目前的Monte-Carlo梯度更新策略
+
+
+$$
+\theta \gets \theta + \alpha \cdot G_t \nabla_\theta \text{ log}\pi_\theta(a_t|s_t) \notag
+$$
+
+
+可以直观将更新视为按照 $G_t$ 的大小变更log-概率，这样一来即使策略达成了预期的收益 ($G_t$接近预期)，也会进行参数更新。一种方法是将该项减去基线$b(s)$，基线可以是任意不随$a$变化的函数。
+
+
+$$
+\nabla_\theta J(\theta) = \nabla_\theta  \mathbb{E}_{\tau ～ \pi_\theta}[R(\tau)] = \mathbb{E}_{\pi_\theta} \Big[\sum_{t=0}^{T-1}(G_t -  b(s_t)) \cdot \nabla_\theta \text{ log }\pi_\theta(a_t|s_t) \Big]
+$$
+
+
+其中$(G_t -  b(s_t))$常称为advantage，$A_t$；推导可得
+$$
+ \mathbb{E}_{\tau}[b(s_t) \nabla_\theta \text{ log }\pi_\theta(a_t|s_t)] = 0
+$$
+所以用$A_t$代替$G_t$后不会对梯度更新带来影响。
+
+
+
+> ${\color[RGB]{159,46,39}{\text{Algorithm: Vanilla Policy Gradient}}}$
+>
+> 初始化策略模型参数$\theta$及基线$b(s)$，e.g. 0，设$b(s)$的参数为$\mathbf{w}$ 
+>
+>
+> $$
+> \begin{align}
+> & \text{for iteration}=1,2,\dots: \notag
+> \\
+> & \ \ \ \ \text{根据当前策略} \pi_{\theta}计算m个轨迹的集合 \notag
+> \\
+> & \ \ \ \ \text{for each time step }t \text{ of each trajectory }\tau^{i}:\notag
+> \\
+> &\ \ \ \ \ \ \ \ G_t^{(i)} = \sum_{t^{\prime} = t}^{T-1} r_{t^{\prime}} \notag
+> \\
+> &\ \ \ \ \ \ \ \ \hat{A}_t^{(i)} = G_t^{(i)} - b(s_t)\notag
+> \\
+> & \ \ \ \ \text{更新}\mathbf{w}(最小化 \sum_{i=1}^{m}\sum_{t=0}^{T-1} \left \| b(s_t)-G_t^{(i)} \right \| ^2   ) \notag
+> \\
+> & \ \ \ \ \text{更新}\theta ：\hat{g} = \sum_{i=1}^{m} \sum_{t=0}^{T-1} \hat{A}_t^{(i)} \nabla_\theta \text{ log }\pi_\theta(a_t^{(i)}|s_t^{(i)})，使用SGD(\theta \gets \theta + \alpha \cdot \hat{g})、Adam等更新 \notag
+> \\
+> &\text{return }\theta \text{ 及 }b(s) \notag
+> \end{align}
+> $$
 
 
 
