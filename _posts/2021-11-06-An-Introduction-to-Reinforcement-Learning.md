@@ -761,24 +761,32 @@ $$
 观察目前的Monte-Carlo梯度更新策略
 
 
+
 $$
 \theta \gets \theta + \alpha \cdot G_t \nabla_\theta \text{ log}\pi_\theta(a_t|s_t) \notag
 $$
 
 
-可以直观将更新视为按照 $G_t$ 的大小变更log-概率，这样一来即使策略达成了预期的收益 ($G_t$接近预期)，也会进行参数更新。一种方法是将该项减去基线$b(s)$，基线可以是任意不随$a$变化的函数。
 
+我们用$ G_t $代替了$Q_t$ ，但这种做法存在着一些问题：
+
+<img src="{{ '/assets/imgs/An-Introduction-to-Reinforcement-Learning/15.png' | relative_url }}" style="zoom:50%;">
+
+*(图源自[CS 294-112: Deep Reinforcement Learning. Sergey Levine](http://rail.eecs.berkeley.edu/deeprlcourse-fa17/f17docs/lecture_5_actor_critic_pdf))*
+
+在状态$s$ (图中绿色点)时，可能的轨迹有多条，这些轨迹求得的期望才是$Q$值；目前我们仅使用一条轨迹的$\sum_{t=t^{\prime}}^{T-1}r_{t^{\prime}}^{(i)} = G_t^{(i)}$代替，这带来了高方差；一种方法是增加基线$b(s)$，通常取值为目前所有轨迹价值的平均值。
 
 $$
 \nabla_\theta J(\theta) = \nabla_\theta  \mathbb{E}_{\tau ～ \pi_\theta}[R(\tau)] = \mathbb{E}_{\pi_\theta} \Big[\sum_{t=0}^{T-1}(G_t -  b(s_t)) \cdot \nabla_\theta \text{ log }\pi_\theta(a_t|s_t) \Big]
 $$
 
+其中$(G_t -  b(s_t))$常称为`优势函数` $A_t$ ，他评估了动作$a_t$的优劣。直观来讲，如果当前轨迹的$G_t$大于均值，则$G_t-b(s_t)>0$，上式将增加他的log-概率，否则优势函数小于0，上式将减小他的log-概率；
 
-其中$(G_t -  b(s_t))$常称为advantage，$A_t$；推导可得
+推导可得
 $$
- \mathbb{E}_{\tau}[b(s_t) \nabla_\theta \text{ log }\pi_\theta(a_t|s_t)] = 0
+\mathbb{E}_{\tau}[b(s_t) \nabla_\theta \text{ log }\pi_\theta(a_t|s_t)] = 0
 $$
-所以用$A_t$代替$G_t$后不会对梯度更新带来影响。
+所以用$A_t$代替$G_t$后依然是无偏的。
 
 
 
@@ -809,6 +817,56 @@ $$
 
 
 
+### Actor-Critic
+
+接下来从MDP开始重新快速回顾一下我们是如何走到这一步的。
+
+首先介绍了MDP过程以及解决MDP过程的两种方法：求$V_\pi、Q_\pi$的`policy evaluation`方法及求最优价值$V_{opt}、Q_{opt}$的`value iteration`方法；
+
+紧接着提出了RL过程，与MDP不同的是我们不知道$(s,a)$的转移概率和回报，借鉴MDP的解决方案，人们出了可以使用探索序列构造MDP模型，然后用MDP的方法求解，紧接着发现可以直接估计价值函数 (轨迹收益的均值)，于是就有了`Model-Free Monte-Carl`方法；
+
+在这里人们发现探索序列对估计结果有很大的影响，介绍了一种随机探索方案`epsilon-greedy  policy`；
+
+由于在蒙卡洛特方法中更新梯度需要完整的轨迹，TD方法提出可以在更新时使用现有的估计$\hat{Q}$，在这里提到了`SARSA`方法；`Q-learing`方法提供了`off-policy`的方法，`DQN`是对`Q-learning`的改进，我们并不需要储存现有的$\hat{Q}$，而是使用另一个网络拟合它，`DQN`还提出了经验重放和冻结网络这两种改进思路；
+
+以上均称之为`value-based`方法，因为我们尝试的是学习价值函数，提取出最后的策略，`policy-based`方法尝试直接学习策略，在这里经过计算最后得到一种可以在每时刻进行更新的`REINFORCE`方法；该方法存在高方差的主要原因是我们使用单轨迹代替了轨迹的期望 (可能的轨迹有多条)，基于此人们提出了基线方法进行修正，即` Vanilla Policy Gradient`方法，但是由于引入了基线，我们在更新的时候又不得不使用完整的轨迹。
+
+Actor-Critic方法，可以看作是对改善`REINFORCE`高方差的另一尝试，改进思路类似`DQN`：既然高方差是对$Q$的不当替换带来的，我们用另一个网络学习$Q$，使用TD方法既可以在不使用完整轨迹的情况下更新网络；其中，Actor指导着动作，Critic代表对价值的评估。
+
+> ${\color[RGB]{159,46,39}{\text{Algorithm: Action-Value Actor-Critic}}}$ [^3] 
+>
+> $Q_w(s, a) = \phi(s, a)^Tw$，学习率$\alpha 、\beta $，衰减率$\gamma $ 
+>
+> *Critic*：模拟$Q_w$，参数$w$
+>
+> *Actor*：模拟$\pi_\theta $，参数$\theta $ 
+>
+> 初始化初始状态$s$，网络参数$\theta $，使用Actor得到$a \sim \pi_{\theta}$
+>
+> $$
+> \begin{align}
+> & \text{for each time step}: \notag
+> \\
+> & \ \ \ \ 基于s, a得到 r \sim R_s^a,s^{\prime} \sim P_s^a \notag
+> \\
+> & \ \ \ \ 使用Actor得到a^{\prime} \sim \pi_{\theta}(s^{\prime},a^{\prime}) \notag
+> \\
+> & \ \ \ \ 使用Critic得到 Q_w(s, a),Q_w(s^{\prime},a^{\prime}) \notag
+> \\
+> & \ \ \ \ 计算TD误差，稍后将用于更新Critic:\ \  \delta  = r + \gamma Q_w(s^{\prime},a^{\prime}) - Q_w(s, a) \notag
+> \\
+> & \ \ \ \ 更新Actor:\ \ \theta = \theta + \alpha \nabla_\theta \text{ log }\pi_\theta(s, a) Q_w(s, a) \notag
+> \\
+> & \ \ \ \ 更新Critic:\ \ w \gets w + \beta \ \delta \ \phi(s, a) \notag
+> \\
+> & \ \ \ \ 获得下一个状态及动作\ \ a \gets a^{\prime},\ s \gets s^{\prime} \notag
+> \end{align}
+> $$
+
+关于Actor-Critic的改进，有两个经典算法，一个是DDPG算法，使用了双Actor神经网络和双Critic神经网络的方法来改善收敛性。另一个是A3C算法，使用了多线程的方式，一个主线程负责更新Actor和Critic的参数，多个辅线程负责分别和环境交互，得到梯度更新值，汇总更新主线程的参数。而所有的辅线程会定期从主线程更新网络参数。这些辅线程起到了类似DQN中经验回放的作用，但是效果更好。
+
 [^1]: [Stanford CS221: AI (Autumn 2019)](https://www.youtube.com/user/stanfordonline) by Stanford University on YouTube.
 [^2]: Mnih V, Kavukcuoglu K, Silver D, et al. [Human-level control through deep reinforcement learning](https://web.stanford.edu/class/psych209/Readings/MnihEtAlHassibis15NatureControlDeepRL.pdf)[J]. nature, 2015, 518(7540): 529-533.
+
+[^3]:  [Reinforcement Learning lectures](https://www.youtube.com/playlist?list=PL7-jPKtc4r78-wCZcQn5IqyuWhBZ8fOxT) by David Silver on YouTube.
 
