@@ -64,6 +64,8 @@ Word2Vec的作者在他们的第二篇论文[^4]中通过以下创新尝试解�
 
 值得注意的是，对频繁出现的词进行子采样和应用负采样等不仅减少了训练过程的计算负担，而且还提高了我们得到的词向量的质量。
 
+
+
 ## ELMo
 
 NLP领域中的预训练思路可以分为两类：
@@ -72,21 +74,178 @@ NLP领域中的预训练思路可以分为两类：
 
 第二代预训练模型以`context-aware`为核心特征，单词的编码不是固定的，而是做为输入的 (包含该单词的) 句子的函数，也就是说“苹果”这个词在分别表示水果和公司时，对应的output是不一样的，其中具有代表性的有ELMo，GPT，BERT等。
 
-在本节，我们将简要介绍ELMo的模型基本结构，半监督训练方法等。
+在本节，我们将简要介绍ELMo (Em- beddings from Language Models)[^5]的模型基本结构，半监督训练方法等。
 
-**Model Details**
+**Semi-supervised**
 
-<img src="{{ '/assets/imgs/Pre-Training-in-NLP/2.png' | relative_url }}" style="zoom:60%;">
+在Semi-supervised Sequence Learning[^6]中，研究人员介绍了两种使用无标签数据对数据进行预训练的方法，第一种是预测序列中的下一个内容，第二种是使用一个序列编码器，将输入序列编码为一个向量，并预测输入序列。
 
-ELMo分为
+这两种算法可以作为后来的监督学习算法的“预训练”步骤来使用，即监督学习算法使用预训练得到的模型参数做为起点，实验中的一个重要结果是，在预训练中使用更多相关任务的无标签数据可以提高后续监督模型的泛化能力。例如，使用来自亚马逊评论的无标签数据对序列自动编码器进行预训练可以将烂番茄的分类准确率从79.7%提高到83.3%，相当于增加了大量的标签数据。使用更多的无标记数据进行无监督学习，可以改善监督学习。
+
+ELMo中使用了第一种方法，在预训练中尝试预测序列中的下一个内容，最终的编码是原始编码层输出及多层biLMs层输出的线性加权和。
+
+**Bidirectional Language Model**
+
+<img src="{{ '/assets/imgs/Pre-Training-in-NLP/2.png' | relative_url }}" style="zoom:40%;">
+
+*(图源: [A Step-by-Step NLP Guide to Learn ELMo for Extracting Features from Text](https://www.analyticsvidhya.com/blog/2019/03/learn-to-use-elmo-to-extract-features-from-text/) by Prateek Joshi—March 11, 2019)*
+
+ELMo模型主要结构由一层单词编码层 (字符级卷积神经网络CNN) 及多层biLMs组成，在顶层biLMs上接一层Softmax输出概率。
+
+设输入序列为$(t_1,t_2,\dots, t_N)$，单词编码层输出为$(x_1, x_2,\dots, x_N)$。
+
+输出的单词出现概率由前后向上下文预测：
 
 
+$$
+p(t_1, t_2,\dots,t_N) = \sum_{k=1}^{N}p(t_k | t_1, t_2, \dots, t_{k-1})
+
+\\
+
+p(t_1, t_2,\dots,t_N) = \sum_{k=1}^{N}p(t_k | t_{k+1}, t_{k+2}, \dots, t_{N})
+$$
+
+
+最大化当前单词的出现概率，可以转换为最小化下式
+
+
+$$
+\mathcal{L}  = - \sum_{k=1}^{N}( \log p(t_k | t_1, t_2, \dots, t_{k-1};\Theta _x, \overrightarrow{\Theta}_{LSTM}, \Theta_s  ) + \log p(t_k | t_{k+1}, t_{k+2}, \dots, t_{N};\Theta _x, \overleftarrow{\Theta}_{LSTM}, \Theta_s))
+$$
+
+
+其中，$\Theta _x$代表单词编码层模型参数，$\overrightarrow{\Theta}_{LSTM}$ 、$$\overleftarrow{\Theta}_{LSTM}$$代表多层LSTM模型参数，$\Theta_s$ 代表Softmax层模型参数。由于原始词向量是由字符级而不是单词级产生的，biLM可以捕捉到单词内部结构，能够找出像beauty和beautiful这样的术语在某种程度上是相关的，甚至不用看它们经常出现的上下文。
+
+**ELMo Representations**
+
+设当前单词$t_k$，共有$L$层biLM，则ELMo共有 $2L+1$个输出，
+
+
+$$
+\begin{align}
+R_k &= \{  x_k^{LM}, \overrightarrow{h}_{k,j}^{LM}, \overleftarrow{h}_{k,j}^{LM} | j=1,\dots,L  \} \notag
+\\
+&= \{ h_{k,j}^{LM} | j=0, \dots,L|\}\notag
+\end{align}
+$$
+
+
+其中$h_{k,0}^{LM}$代表原始编码层，$h_{k,j}^{LM} = [\overrightarrow{h}_{k,j}^{LM}, \overleftarrow{h}_{k,j}^{LM}]$代表biLM层。
+
+ELMo将$R$做加权和，概括为单个向量
+
+
+$$
+ELMo_k^{task} = E(R_k; \Theta^{task}) =  \gamma^{task} \sum_{j=0}^{L}s_j^{task}h_{k,j}^{LM}
+$$
+
+
+其中$s_j^{task}$为softmax归一化权重，$\gamma^{task}$允许任务模型对整个$ELMo$向量进行缩放，$\gamma$对帮助优化过程具有实际意义，详见原论文[^5]。
+
+## ULMFiT
+
+在ULMFiT[^7]中，研究人员首次提出`LM + task-specific fine-tuning`的训练策略，步骤如下
+
+（1）使用无标签数据预训练LM模型
+
+（2）针对目标任务对LM进行微调
+
+- `Discriminative fine-tuning`由于LM的不同层捕获不同类型的信息 (见ELMo原论文[^5])。ULMFiT建议用不同的学习率来调整每一层，${η_1,...,η_ℓ,...,η_L}$，其中$η$是第一层的基本学习率，$η_ℓ$是第$ℓ$层的学习率，总共有$L$层。
+- `Slanted triangular learning rates (STLR)`首先线性增加学习率，然后线性衰减。增加阶段很短，这样模型可以快速收敛到适合任务的参数空间，而衰减期很长，可以更好地进行微调。
+
+（3）预训练的LM增加了两个标准的前馈层，并在最后进行softmax归一化以预测目标标签分布，对目标任务分类器进行微调。
+
+- `Concat pooling`，提取隐藏状态历史上的最大投票和平均投票，并将它们与最终的隐藏状态串联起来。
+- `Gradual unfreezin`，指从最后一层开始逐步解冻模型。最后一层被解冻并微调一`epoch`，然后下一个较低的层被解冻，循环该过程知道所有层微调完成。
 
 ## GPT
 
+GPT使用transformer的decoder创建了一种基础的通用框架，可以将预训练好的模型直接用于许多downstream task。
+
+<img src="{{ '/assets/imgs/Pre-Training-in-NLP/3.png' | relative_url }}" style="zoom:35%;">
+
+*(图源: 原论文[^8])*
+
+GPT同样分为预训练及微调两部分。
+
+**Unsupervised pre-training**
+
+<img src="{{ '/assets/imgs/Pre-Training-in-NLP/4.png' | relative_url }}" style="zoom:30%;">
+
+*(图源:[Lilian Weng. Learning Word Embedding](https://lilianweng.github.io/lil-log/2017/10/15/learning-word-embedding.html)[^3])*
+
+GPT在transformer的decoder之上添加了embedding层及softmax层，只关注过去的上下文信息，loss计算如下 (设窗口大小为$k$)
 
 
-## Bert
+$$
+\mathcal{L}_{LM} =  - \sum_i \log p(x_i | x_{i-k}, \dots, x_{i-1} )
+$$
+
+
+**Supervised fine-tuning**
+
+以分类任务为例
+
+<img src="{{ '/assets/imgs/Pre-Training-in-NLP/5.png' | relative_url }}" style="zoom:30%;">
+
+设输入为$(x_1, \dots, x_n)$，标签$y$，GPT将$(x_1, \dots, x_n)$输入到预训练好的transformer decoder中，最后一层隐藏层对于$x_n$输出为$\mathbf{h}_L^{(n)}$ ，使用它预测标签。
+
+　
+$$
+P(y|x_1, \dots, x_n) = softmax(\mathbf{h}_L^{(n)}  \mathbf{W}_y)
+$$
+
+
+loss由两部分组成，增加LM损失作为辅助损失有以下效益：在训练期间加速收敛，提高监督模型的泛化能力。
+
+
+$$
+\begin{align}
+\mathcal{L}_{cls} &= \sum_{(\mathbf{x},y) \in \mathcal{D}} \log P(y|x_1, \dots, x_n) = \sum_{(\mathbf{x},y) \in \mathcal{D}} \log \text{softmax}(\mathbf{h}_L^{(n)}(\mathbf{x})\mathbf{W}_y) \notag
+\\
+\mathcal{L}_{LM} &= -\sum_i \log p(x_i| x_{i-k}, \dots, x_{i-1}) \notag
+\\
+\mathcal{L}  &= \mathcal{L}_{cls} + \mathcal{L}_{LM} \notag
+\end{align}
+$$
+
+
+有了类似的设计，其他downstream task就不需要定制模型结构了。如果任务输入包含多个句子，则在每对句子之间添加一个特殊的分隔符`($)`，这个分隔符的嵌入是我们需要学习的一个新参数。总的来说，在微调过程中，我们需要的唯一额外参数是$W_y$ ，以及分隔符标记的嵌入。
+
+需要提一点的是，早期的研究者们在模型结构上做的尝试比较多，比如ELMo使用了双向LSTM。然而在Transformer出现后，研究者们研究的重点就从模型结构转移到了训练策略上。比如GPT和BERT都是基于Transformer结构的: GPT基于Transformer decoder，而BERT基于Transformer encoder。
+
+[^1]: [Word2Vec Tutorial-The Skip-Gram Model](http://mccormickml.com/2016/04/19/word2vec-tutorial-the-skip-gram-model/) - 11 Jan 2017 by Chris McCormick
+[^2]: Mikolov, Tomas, Kai Chen, Greg Corrado, and Jeffrey Dean. "[Efficient estimation of word representations in vector space.](https://arxiv.org/abs/1301.3781)" *arXiv preprint arXiv:1301.3781* (2013).
+[^3]: [Learning Word Embedding](https://lilianweng.github.io/lil-log/2017/10/15/learning-word-embedding.html) - Oct 15, 2017 by Lilian Weng
+[^4]: Mikolov, Tomas, et al. "[Distributed representations of words and phrases and their compositionality.](https://arxiv.org/pdf/1310.4546.pdf)" *Advances in neural information processing systems*. 2013.
+[^5]: Matthew E. Peters, et al. [“Deep contextualized word representations.”](https://arxiv.org/abs/1802.05365) NAACL-HLT 2017.
+[^6]: Dai, Andrew M., and Quoc V. Le. "[Semi-supervised sequence learning.](https://arxiv.org/pdf/1511.01432.pdf)" *Advances in neural information processing systems*28 (2015): 3079-3087.
+[^7]: Howard, Jeremy, and Sebastian Ruder. "[Universal language model fine-tuning for text classification.](https://arxiv.org/pdf/1801.06146.pdf)" *arXiv preprint arXiv:1801.06146* (2018).
+[^8]: Alec Radford et al. [“Improving Language Understanding by Generative Pre-Training”](https://s3-us-west-2.amazonaws.com/openai-assets/research-covers/language-unsupervised/language_understanding_paper.pdf). OpenAI Blog, June 11, 2018.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
