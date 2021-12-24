@@ -2,8 +2,11 @@
 layout: post
 title: Attention and Transformer Networks
 date: 2021-11-28 07:58
-author: LiHan
+comments: true
+external-url:
 categories: MachineLearning
+author: LiHan
+
 ---
 
 Attention的想法源于对人类视觉的研究，当我们看到一副图像的时候，很自然的会对某些部分给予更高的关注
@@ -59,17 +62,13 @@ W^T_q q + W^T_k k_i  & \text{additive similarity} \\
 \dots
 \end{matrix}\right.
 $$
+
+
 其中$q^Tk_i$及$\frac{q^Tk_i}{\sqrt{d_{k}} }$设想$q$与$k$在同一空间内，其他的计算方式多是通过线性或非线性方式将$q、k$先映射到新空间，也许在各自的新空间$q、k_i$可以更好的比较，然后在新空间计算相似性。
 
 RNN将序列视为"序列"顺序输入网络，而面对Attention，序列更像“一块”内存：当需要查询的时候，我们以不同的权重一次性访问整个序列；Attention并不存在序列“顺序”输入的问题，也就不存在难以并行，长期记忆，网络深度随序列长度线性增长，梯度等问题。
 
 回忆Attention的三要素：查询，键，值；在翻译任务中，一般有 $\mathbf{k} = \mathbf{v}$，即每个单词本身既作为键又作为值；在self-attention中，一般有 $q \in \mathbf{k}$ ，即对于序列中每个键查询序列其他位置的相关性。
-
-
-
-
-
-
 
 ## Transformer Network
 
@@ -79,11 +78,15 @@ RNN将序列视为"序列"顺序输入网络，而面对Attention，序列更像
 
 左侧是Encoder部分，我们将整个序列一次性全部输入，编码后经过$N$次`MHD`以及`FF`产生最后输出，右侧是Decoder部分，输入的是我们的预期输出序列，与Encoder类似同样要进行编码及添加位置信息，循环$N$次的部分主要包括三层：`Masked MHD`，`MHD`，`FF`，添加一层Masked的原因是，直观来想，在翻译任务中，我们在“产生”一个输出序列的时候，并不应该看到当前输出之后的内容，在MHD层中接收了Encoder部分的输出，类似我们在进行翻译的时候会不时的查看原输入内容。与Encoder不同的是Decoder希望产生一些实际的输出 (如概率) ，为此在其顶部我们添加了 `Linear`及`Softmax`层。
 
-接下来我们将逐层了解他们的实际细节。
+让我们逐层了解他们的细节。
 
-**Positional embedding**
+**Embedding**
 
-`Embedding`层主要作用是将单词映射到某空间内，将单词转变为多维向量，`Positional embedding`这一步骤是为了将位置信息添加到我们的数据中，弥补我们将序列视为“一块内存”的不足，添加位置有多种方式，如直接将位置附加在原数据后等。为了将位置这一标量展开成向量，以便附加在原数据后，Transformer使用了如下的方法。
+`Embedding`层主要作用是将单词映射到某空间内，将单词转变为多维向量，embedding包括词embedding及位置embedding两部分，假设目前输入：“cute cat”。词编码过程如下，最终得到编码矩阵。
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/9.png' | relative_url }}" style="zoom:40%;">
+
+`Positional embedding`这一步骤是为了将位置信息添加到我们的数据中，弥补我们将序列视为“一块内存”的不足，添加位置有多种方式，如直接将位置附加在原数据后等。为了将位置这一标量展开成向量，以便附加到原数据，Transformer使用了如下的方法。
 
 
 $$
@@ -93,13 +96,49 @@ PE_{position,2i+1} = cos(position/10000^{2i/d})
 $$
 
 
+**Self-attention**
+
+回顾attention value的计算过程
+
+
+$$
+attention(q, \mathbf{k}, \mathbf{v}) = \sum_i softmax(similarity(q, k_i)) \times  v_i
+$$
+
+
+在transformer中的self-attention中，$q$，$k_i$， $v_i$都是输入$x_i$的不同线性变换 ($W_Q, W_K, W_V$)，以$q$的计算为例
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/10.png' | relative_url }}" style="zoom:40%;">
+
+经过`Linear`层得到$Q,K,V$，接下来计算$similarity(q, k_i)$，上文中我们提到有多种计算方法，以$\text{scaled dot product}$为例，$similarity(q, k_i) =  \frac{q^Tk_i}{\sqrt{d_{k}} }$。
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/11.png' | relative_url }}" style="zoom:40%;">
+
+$similarity$再经过$softmax$，加权和，就得到该次的查询结果，以计算"cute"的attention value为例
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/12.png' | relative_url }}" style="zoom:40%;">
+
+将以上运算放到整个矩阵中看，如下
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/13.png' | relative_url }}" style="zoom:30%;">
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/14.png' | relative_url }}" style="zoom:30%;">
+
 **Multi-head attention**
 
 在MHD层中使用的是self-attention，$q \in \mathbf{k} , \ \mathbf{k} = \mathbf{v}$，该层结构抽象化如下：
 
 <img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/7.png' | relative_url }}" style="zoom:40%;">
 
-源序列同时作为$V、K、Q$输入，首先经过一个多层`Linear`，该部分将输入映射到多个空间中，在以后我们会在不同的空间进行attention的计算；在这之后transformer采用了$\text{scaled dot product}$的方法计算各个attention value；最后将各空间中采集到的attention value进行`Concat`，`Linear`后得到`multi-head attention`。
+源序列同时作为$V、K、Q$输入，首先经过一个多层`Linear`，该部分将输入映射到多个空间中，在以后我们会在不同的空间进行attention value的计算；
+
+<img src="{{ '/assets/imgs/Attention-and-Transformer-Networks/15.png' | relative_url }}" style="zoom:40%;">
+
+
+
+最后将各空间中采集到的attention value进行`Concat`，`Linear`后得到`multi-head attention`。
+
+
 
 在Transformer中，MHD层循环了$N$次；在循环一次时，输出的是原序列中每元素对其他元素的attention value，循环两次时，查询attention value的attention value，即多对多的查询，循环$N$次的目的即是我们不止想查询一对元素之间的关系，而是想查询一组元素和另一组元素之间的关系。
 
@@ -164,4 +203,6 @@ Transformer是一类不依赖于递归的序列神经网络的起点，在这之
 [^2]: [深度学习中的注意力机制(2017版)](https://blog.csdn.net/malefactor/article/details/78767781) - Dec 10, 2017 by 张俊林
 
 [^3]: Vaswani, Ashish, et al. "[Attention is all you need.](https://arxiv.org/abs/1706.03762)" *Advances in neural information processing systems*. 2017.
+
+
 
